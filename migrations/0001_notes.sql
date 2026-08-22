@@ -1,0 +1,6 @@
+-- Mail tables are intentionally not row-level secured, in line with the global tables in mod_core.
+-- `deliveries` and `suppressions` are operational records whose workspace_id is nullable: instance-level
+-- mail (account emails sent before a workspace exists, and instance-wide suppressions) has no tenant to
+-- scope to, and the send path writes outside any workspace transaction. Tenant access goes exclusively
+-- through this module's API, which filters by workspace_id and requires mail.deliveries.view /
+-- mail.settings.manage.
