@@ -1,5 +1,5 @@
 import { defineClientModule } from '@kernhq/kernel/client'
-import { MODULE_ID } from '@kernhq/module-mail/contract'
+import { MODULE_ID } from '../contract.js'
 
 /**
  * Mail's client surface. The module has no navigation of its own — outbound email is configuration,

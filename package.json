@@ -16,7 +16,8 @@
     "dist",
     "migrations",
     "templates",
-    "src/client"
+    "src/client",
+    "src/contract.ts"
   ],
   "exports": {
     "./contract": {
