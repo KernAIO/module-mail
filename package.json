@@ -68,6 +68,7 @@
     }
   },
   "devDependencies": {
+    "@kernhq/tsconfig": "^0.1.0",
     "@types/mjml": "^5.0.0",
     "@types/node": "^24.0.0",
     "@types/nodemailer": "^8.0.1",
