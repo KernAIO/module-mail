@@ -7,7 +7,7 @@ import {
   page,
   Timestamp,
   WorkspaceId,
-} from '@kernaio/contracts'
+} from '@kernhq/contracts'
 import { z } from 'zod'
 
 export const MODULE_ID = 'mail'

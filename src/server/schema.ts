@@ -1,4 +1,4 @@
-import { moduleSchema, sql } from '@kernaio/kernel'
+import { moduleSchema, sql } from '@kernhq/kernel'
 import { index, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 
 export const schema = moduleSchema('mail')

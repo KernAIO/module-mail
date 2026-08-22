@@ -1,4 +1,4 @@
-import { KernError } from '@kernaio/kernel'
+import { KernError } from '@kernhq/kernel'
 import { mailgunProvider } from './mailgun.js'
 import { postmarkProvider } from './postmark.js'
 import { resendProvider } from './resend.js'

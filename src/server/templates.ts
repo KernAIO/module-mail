@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { KernError } from '@kernaio/kernel'
+import { KernError } from '@kernhq/kernel'
 import { Eta } from 'eta'
 import mjml2html from 'mjml'
 
