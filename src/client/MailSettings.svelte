@@ -1,5 +1,5 @@
 <script lang="ts">
-import { SECRET_PLACEHOLDER } from '../contract.js'
+import { SECRET_PLACEHOLDER } from '@kernhq/module-mail/contract'
 
 /**
  * Workspace email settings.
