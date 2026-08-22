@@ -28,6 +28,7 @@ import { maskConfig, unmaskConfig } from './settings.js'
 import { addSuppression } from './suppressions.js'
 import { renderTemplate } from './templates.js'
 
+export * from './providers/index.js'
 export * from './schema.js'
 export * from './send.js'
 export * from './settings.js'
