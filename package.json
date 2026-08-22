@@ -16,7 +16,8 @@
   "files": [
     "dist",
     "migrations",
-    "templates"
+    "templates",
+    "src/client"
   ],
   "exports": {
     "./contract": {
@@ -28,15 +29,20 @@
       "import": "./dist/server/index.js"
     },
     "./client": {
-      "types": "./dist/client/index.d.ts",
-      "svelte": "./dist/client/index.js",
-      "import": "./dist/client/index.js"
+      "types": "./src/client/index.ts",
+      "svelte": "./src/client/index.ts",
+      "default": "./src/client/index.ts"
     },
     "./migrations": "./migrations",
-    "./templates": "./templates"
+    "./templates": "./templates",
+    "./client/*": {
+      "types": "./src/client/*",
+      "svelte": "./src/client/*",
+      "default": "./src/client/*"
+    }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json && cp src/client/*.svelte dist/client/",
+    "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
