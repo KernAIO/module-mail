@@ -1,12 +1,12 @@
 {
-  "name": "@kernalo/module-mail",
+  "name": "@kernaio/module-mail",
   "version": "0.1.0",
   "description": "Kern mail module: outbound providers (SMTP/Mailgun/SES/Postmark/Resend), MJML templates, delivery queue, bounces & suppressions",
   "license": "AGPL-3.0-only",
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "https://github.com/KernALO/modules",
+    "url": "https://github.com/KernAIO/modules",
     "directory": "packages/mail"
   },
   "publishConfig": {
@@ -50,8 +50,8 @@
   },
   "dependencies": {
     "@aws-sdk/client-sesv2": "^3.1116.0",
-    "@kernalo/contracts": "^0.1.0",
-    "@kernalo/kernel": "^0.1.0",
+    "@kernaio/contracts": "^0.1.0",
+    "@kernaio/kernel": "^0.1.0",
     "@orpc/contract": "^1.15.0",
     "@orpc/server": "^1.15.0",
     "drizzle-orm": "^0.45.0",

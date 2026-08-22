@@ -1,4 +1,4 @@
-import type { core } from '@kernalo/contracts'
+import type { core } from '@kernaio/contracts'
 
 /** Fully resolved message, ready for a provider (attachments already fetched). */
 export interface OutgoingMessage {

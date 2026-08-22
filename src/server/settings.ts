@@ -1,5 +1,5 @@
-import { core } from '@kernalo/contracts'
-import { KernError, SECRET_FIELD_NAMES } from '@kernalo/kernel'
+import { core } from '@kernaio/contracts'
+import { KernError, SECRET_FIELD_NAMES } from '@kernaio/kernel'
 import { SECRET_PLACEHOLDER } from '../contract.js'
 
 /** Replace secret fields with a placeholder before returning config to clients. */

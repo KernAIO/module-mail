@@ -1,4 +1,4 @@
-import { defineClientModule } from '@kernalo/kernel/client'
+import { defineClientModule } from '@kernaio/kernel/client'
 import { MODULE_ID } from '../contract.js'
 
 /**

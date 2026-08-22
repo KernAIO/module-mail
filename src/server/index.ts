@@ -1,6 +1,6 @@
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { core } from '@kernalo/contracts'
+import type { core } from '@kernaio/contracts'
 import {
   defineModule,
   defineServerModule,
@@ -9,7 +9,7 @@ import {
   requires,
   uuidv7,
   workspaceScoped,
-} from '@kernalo/kernel'
+} from '@kernaio/kernel'
 import { implement } from '@orpc/server'
 import { and, desc, eq, lt } from 'drizzle-orm'
 import { z } from 'zod'
@@ -70,7 +70,7 @@ function fromAddress(config: core.MailProviderConfig | null): string {
   return process.env.MAIL_FROM ?? `${instanceName()} <no-reply@localhost>`
 }
 
-const os = implement(mailContract).$context<import('@kernalo/kernel').RequestContext>()
+const os = implement(mailContract).$context<import('@kernaio/kernel').RequestContext>()
 
 function mailRouter(kernel: Kernel) {
   const scoped = os.use(workspaceScoped(MODULE_ID))

@@ -1,5 +1,5 @@
-import type { Kernel } from '@kernalo/kernel'
-import { uuidv7 } from '@kernalo/kernel'
+import type { Kernel } from '@kernaio/kernel'
+import { uuidv7 } from '@kernaio/kernel'
 import { and, eq, inArray, isNull, or } from 'drizzle-orm'
 import { suppressions } from './schema.js'
 
