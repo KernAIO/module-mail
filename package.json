@@ -1,0 +1,74 @@
+{
+  "name": "@kernalo/module-mail",
+  "version": "0.1.0",
+  "description": "Kern mail module: outbound providers (SMTP/Mailgun/SES/Postmark/Resend), MJML templates, delivery queue, bounces & suppressions",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KernALO/modules",
+    "directory": "packages/mail"
+  },
+  "publishConfig": {
+    "access": "restricted",
+    "registry": "https://npm.pkg.github.com"
+  },
+  "files": [
+    "dist",
+    "migrations",
+    "templates"
+  ],
+  "exports": {
+    "./contract": {
+      "types": "./dist/contract.d.ts",
+      "import": "./dist/contract.js"
+    },
+    "./server": {
+      "types": "./dist/server/index.d.ts",
+      "import": "./dist/server/index.js"
+    },
+    "./client": {
+      "types": "./dist/client/index.d.ts",
+      "svelte": "./dist/client/index.js",
+      "import": "./dist/client/index.js"
+    },
+    "./migrations": "./migrations",
+    "./templates": "./templates"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && cp src/client/*.svelte dist/client/",
+    "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "db:generate": "drizzle-kit generate"
+  },
+  "dependencies": {
+    "@aws-sdk/client-sesv2": "^3.1116.0",
+    "@kernalo/contracts": "^0.1.0",
+    "@kernalo/kernel": "^0.1.0",
+    "@orpc/contract": "^1.15.0",
+    "@orpc/server": "^1.15.0",
+    "drizzle-orm": "^0.45.0",
+    "eta": "^4.6.0",
+    "mjml": "^5.4.0",
+    "nodemailer": "^9.0.5",
+    "zod": "^4.1.0"
+  },
+  "peerDependencies": {
+    "fastify": "^5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "fastify": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/mjml": "^5.0.0",
+    "@types/node": "^24.0.0",
+    "@types/nodemailer": "^8.0.1",
+    "drizzle-kit": "^0.31.0",
+    "fastify": "^5.6.0",
+    "typescript": "~5.9.3",
+    "vitest": "^4.0.0"
+  }
+}

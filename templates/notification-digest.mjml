@@ -1,0 +1,24 @@
+<mj-section padding="24px 32px 8px">
+  <mj-column>
+    <mj-text font-size="18px" font-weight="600">Your <%= it.periodLabel %> digest</mj-text>
+    <mj-text css-class="muted" color="#615B4F">
+      Hi <%= it.name %>, here is what happened in <b><%= it.workspaceName %></b> while you were away
+      (<%= it.items.length %> notification<%= it.items.length === 1 ? '' : 's' %>).
+    </mj-text>
+  </mj-column>
+</mj-section>
+<% it.items.forEach(function (item) { %>
+<mj-section padding="4px 32px">
+  <mj-column border-left="3px solid #B4661C" padding-left="12px">
+    <mj-text font-weight="600" padding-bottom="0"><a href="<%= item.url %>" style="color:#1C1A17;text-decoration:none;"><%= item.title %></a></mj-text>
+    <% if (item.body) { %>
+    <mj-text css-class="muted" font-size="12px" color="#615B4F" padding-top="2px"><%= item.body %></mj-text>
+    <% } %>
+  </mj-column>
+</mj-section>
+<% }) %>
+<mj-section padding="16px 32px 24px">
+  <mj-column>
+    <mj-button href="<%= it.inboxUrl %>">Open inbox</mj-button>
+  </mj-column>
+</mj-section>

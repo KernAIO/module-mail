@@ -1,0 +1,8 @@
+You're invited to <%= it.workspaceName %>
+
+<%= it.inviterName %> invited you to join the <%= it.workspaceName %> workspace on <%= it.instanceName %>.
+
+Accept the invitation:
+<%= it.acceptUrl %>
+
+If you didn't expect this invitation you can ignore this email.

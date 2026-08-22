@@ -1,0 +1,5 @@
+Mail is working
+
+This is a test message from <%= it.instanceName %><% if (it.workspaceName) { %> for the workspace <%= it.workspaceName %><% } %>, sent via the <%= it.provider %> provider.
+
+If you received this email, your outbound mail configuration is correct.

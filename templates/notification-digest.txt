@@ -1,0 +1,8 @@
+Your <%= it.periodLabel %> digest
+
+Hi <%= it.name %>, here is what happened in <%= it.workspaceName %> while you were away:
+
+<% it.items.forEach(function (item) { %>* <%= item.title %>
+  <%= item.url %>
+<% }) %>
+Open your inbox: <%= it.inboxUrl %>

@@ -1,0 +1,6 @@
+Sign in to <%= it.instanceName %>
+
+Use this link to sign in (valid for a short time, single use):
+<%= it.url %>
+
+If you didn't request this email you can safely ignore it.

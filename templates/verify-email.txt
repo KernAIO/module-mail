@@ -1,0 +1,7 @@
+Verify your email
+
+Hi <%= it.name %>, confirm that <%= it.email %> is your address to finish setting up your <%= it.instanceName %> account:
+
+<%= it.url %>
+
+If you didn't create an account you can safely ignore this email.
