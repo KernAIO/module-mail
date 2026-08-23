@@ -6,6 +6,7 @@ import {
   defineServerModule,
   KernError,
   type Kernel,
+  packageVersion,
   requires,
   uuidv7,
   workspaceScoped,
@@ -147,7 +148,7 @@ export const mailModule = defineServerModule({
   definition: defineModule({
     id: MODULE_ID,
     name: 'Mail',
-    version: '0.1.0',
+    version: packageVersion(import.meta.url),
     description: 'Outbound email: per-workspace providers, templates, delivery log and suppressions',
     icon: 'mail',
     core: false,
