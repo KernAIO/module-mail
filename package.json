@@ -1,6 +1,6 @@
 {
   "name": "@kernhq/module-mail",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Kern mail module: outbound providers (SMTP/Mailgun/SES/Postmark/Resend), MJML templates, delivery queue, bounces & suppressions",
   "license": "AGPL-3.0-only",
   "type": "module",
