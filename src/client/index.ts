@@ -1,29 +1,11 @@
-import { defineClientModule } from '@kernhq/kernel/client'
-import { MODULE_ID } from '../contract.js'
+export { MODULE_ID, SECRET_PLACEHOLDER } from '../contract.js'
+export { createMailClient, type MailApi } from './api.js'
 
 /**
- * Mail's client surface. The module has no navigation of its own — outbound email is configuration,
- * not a place people visit — so it contributes a workspace settings page where an admin chooses the
- * provider and sends a test message.
+ * Mail's client surface is a typed API client and nothing else.
  *
- * The settings component is still to be written; the entry is registered so the module appears in
- * the settings navigation as soon as it lands.
+ * There is no client module here: the app composes its own (`registry.ts` registers modules defined
+ * in `app/src/lib/modules/*/client.ts`), because navigation labels have to go through the app's
+ * message catalogue and its screens are app routes. A `defineClientModule` in this package would
+ * never be registered and its `component` never rendered.
  */
-export const mailClient = defineClientModule({
-  id: MODULE_ID,
-  name: 'Mail',
-  icon: 'mail',
-  settingsPages: [
-    {
-      id: 'mail',
-      label: 'Email',
-      icon: 'mail',
-      scope: 'workspace',
-      permission: 'mail.settings.manage',
-      order: 40,
-      component: () => import('./MailSettings.svelte'),
-    },
-  ],
-})
-
-export default mailClient
