@@ -156,6 +156,8 @@ export const mailModule = defineServerModule({
     permissions: mailPermissions,
     events: mailEvents,
   }),
+  /** Attached so the developer panel can check the router against what was promised. */
+  contract: mailContract,
   schema,
   migrationsFolder: join(dirname(fileURLToPath(import.meta.url)), '../../migrations'),
   router: mailRouter,
