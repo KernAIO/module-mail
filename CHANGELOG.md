@@ -1,5 +1,11 @@
 # @kernhq/module-mail
 
+## 0.4.1
+
+### Patch Changes
+
+- fix: nodemailer belongs to the module, not the service
+
 ## 0.4.0
 
 ### Minor Changes
