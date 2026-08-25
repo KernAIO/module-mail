@@ -13,7 +13,13 @@ jobs:
       # 127.0.0.1, never localhost: a runner resolves localhost to ::1 first, where the published
       # port is not listening, and the client does not retry over IPv4.
       DATABASE_URL: postgres://kern:kern@127.0.0.1:5432/kern
+      # The delivery tests send through a real SMTP server and read the result back.
+      SMTP_URL: smtp://127.0.0.1:1025
+      MAILPIT_URL: http://127.0.0.1:8025
     services:
+      mailpit:
+        image: axllent/mailpit:latest
+        ports: ['1025:1025', '8025:8025']
       # The suites create a scratch database per file, apply the migrations and prove row-level
       # security as an unprivileged role. Nothing is mocked, so without this they fail to start
       # rather than quietly passing.

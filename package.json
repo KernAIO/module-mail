@@ -45,13 +45,14 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput",
+    "dev": "tsx watch --clear-screen=false src/service/main.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit && svelte-check --tsconfig ./tsconfig.client.json --threshold error",
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
     "lint": "biome check . && node scripts/check-ranges.mjs package.json",
     "format": "biome check --write .",
-    "changeset": "changeset"
+    "changeset": "changeset",
+    "start": "node dist/service/main.js"
   },
   "dependencies": {
     "@aws-sdk/client-sesv2": "^3.1116.0",
@@ -60,8 +61,11 @@
     "@kernhq/sdk": "^0.1.5",
     "@orpc/contract": "^1.15.0",
     "@orpc/server": "^1.15.0",
+    "dotenv": "^17.4.0",
     "drizzle-orm": "^0.45.0",
     "eta": "^4.6.0",
+    "fastify": "^5.6.0",
+    "imapflow": "^1.7.0",
     "mjml": "^5.4.0",
     "nodemailer": "^9.0.5",
     "zod": "^4.1.0"
@@ -89,8 +93,11 @@
   "devDependencies": {
     "@biomejs/biome": "^2.0.0",
     "@changesets/cli": "^2.27.0",
+    "@kernhq/testing": "^0.1.0",
     "@kernhq/tsconfig": "^0.1.0",
     "@kernhq/ui": "^0.8.0",
+    "@orpc/contract": "^1.15.0",
+    "@orpc/server": "^1.15.0",
     "@tanstack/svelte-query": "^6.1.0",
     "@types/mjml": "^5.0.0",
     "@types/node": "^24.0.0",
@@ -99,6 +106,7 @@
     "fastify": "^5.6.0",
     "svelte": "^5.46.0",
     "svelte-check": "^4.0.0",
+    "tsx": "^4.23.0",
     "typescript": "~5.9.3",
     "vitest": "^4.0.0"
   },

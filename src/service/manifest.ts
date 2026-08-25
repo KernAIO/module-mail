@@ -1,4 +1,4 @@
-import { mailModule } from '@kernhq/module-mail/server'
+import { mailModule } from '../server/index.js'
 
 /**
  * What this image contains, printed as JSON.

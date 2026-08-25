@@ -14,12 +14,12 @@ import type { MembershipSummary, Principal } from '@kernhq/contracts'
 import { ANONYMOUS } from '@kernhq/contracts'
 import type { Kernel, RequestContext } from '@kernhq/kernel'
 import { uuidv7 } from '@kernhq/kernel'
-import { type MailContract, mailContract } from '@kernhq/module-mail/contract'
 import { createScratchDatabase } from '@kernhq/testing'
 import type { ContractRouterClient } from '@orpc/contract'
 import { createRouterClient } from '@orpc/server'
 import { config as loadDotenv } from 'dotenv'
-import { createMailService, type MailService } from '../service.js'
+import { type MailContract, mailContract } from '../contract.js'
+import { createMailService, type MailService } from '../service/service.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 loadDotenv({ path: resolve(here, '../../.env'), quiet: true })

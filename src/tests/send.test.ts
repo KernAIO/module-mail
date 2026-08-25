@@ -3,6 +3,9 @@
  * are suppressed, and — end to end — a message queued through `mail.send` arriving at the dev SMTP
  * server, asserted through Mailpit's API.
  */
+
+import { eq } from 'drizzle-orm'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   addSuppression,
   deliveries,
@@ -14,9 +17,7 @@ import {
   SECRET_PLACEHOLDER,
   suppressions,
   unmaskConfig,
-} from '@kernhq/module-mail/server'
-import { eq } from 'drizzle-orm'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+} from '../server/index.js'
 import {
   expectRejection,
   MAILPIT_URL,

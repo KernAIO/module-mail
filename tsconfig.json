@@ -5,6 +5,6 @@
     "outDir": "dist",
     "types": ["node"]
   },
-  "include": ["src"],
+  "include": ["src/contract.ts", "src/server", "src/service"],
   "exclude": ["src/**/*.test.ts", "src/client"]
 }

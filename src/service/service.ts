@@ -1,6 +1,6 @@
 import { createHttpServer, createKernel, type Kernel } from '@kernhq/kernel'
-import { mailModule } from '@kernhq/module-mail/server'
 import type { FastifyInstance } from 'fastify'
+import { mailModule } from '../server/index.js'
 import { loadMailEnv, type MailEnv } from './env.js'
 import { createPrincipals, type Principals } from './principal.js'
 import { mountWebhooks } from './webhooks.js'

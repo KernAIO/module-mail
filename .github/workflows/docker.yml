@@ -13,7 +13,9 @@ jobs:
       - id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/kernaio/${{ github.event.repository.name }}
+          # Pinned, not derived from the repository name: the image is a deployment artefact that
+          # compose files, Coolify and the release feed all name `mail`.
+          images: ghcr.io/kernaio/mail
           tags: |
             type=ref,event=branch
             type=semver,pattern={{version}}

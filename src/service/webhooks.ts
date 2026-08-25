@@ -5,9 +5,9 @@
  */
 
 import type { Kernel } from '@kernhq/kernel'
-import { addSuppression, deliveries, emitDeliveryEvent, mailEvents } from '@kernhq/module-mail/server'
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
+import { addSuppression, deliveries, emitDeliveryEvent, mailEvents } from '../server/index.js'
 import type { MailEnv } from './env.js'
 
 type Normalised = {

@@ -2,9 +2,10 @@
  * Provider webhooks. Each provider reports deliveries and bounces in its own shape; the service
  * normalises them into a delivery status plus, for hard failures, a suppression entry.
  */
-import { deliveries, loadSuppressed, suppressions } from '@kernhq/module-mail/server'
+
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { deliveries, loadSuppressed, suppressions } from '../server/index.js'
 import { recipient, startMail, type TestMail } from '../testing/harness.js'
 
 let mail: TestMail

@@ -2,8 +2,9 @@
  * Template rendering. Every transactional email the platform sends goes through here, so the shape of
  * the output (subject line, plain-text alternative, escaped HTML) is worth pinning down.
  */
-import { hasTemplate, renderTemplate, templateNames } from '@kernhq/module-mail/server'
+
 import { describe, expect, it } from 'vitest'
+import { hasTemplate, renderTemplate, templateNames } from '../server/index.js'
 
 describe('the template catalogue', () => {
   it('lists the transactional templates and hides the shared layout', () => {
