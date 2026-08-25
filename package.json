@@ -1,6 +1,6 @@
 {
   "name": "@kernhq/module-mail",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Kern mail module: outbound providers (SMTP/Mailgun/SES/Postmark/Resend), MJML templates, delivery queue, bounces & suppressions",
   "homepage": "https://kernaio.com",
   "license": "AGPL-3.0-only",
