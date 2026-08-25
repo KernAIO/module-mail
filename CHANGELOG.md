@@ -1,5 +1,11 @@
 # @kernhq/module-mail
 
+## 0.4.0
+
+### Minor Changes
+
+- Merge remote-tracking branch 'origin/main'
+
 ## 0.3.2
 
 ### Patch Changes
