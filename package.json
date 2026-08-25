@@ -2,13 +2,12 @@
   "name": "@kernhq/module-mail",
   "version": "0.3.1",
   "description": "Kern mail module: outbound providers (SMTP/Mailgun/SES/Postmark/Resend), MJML templates, delivery queue, bounces & suppressions",
-  "homepage": "https://kernaio.com",
+  "homepage": "https://github.com/KernAIO/module-mail#readme",
   "license": "AGPL-3.0-only",
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "https://github.com/KernAIO/modules",
-    "directory": "packages/mail"
+    "url": "git+https://github.com/KernAIO/module-mail.git"
   },
   "publishConfig": {
     "access": "public"
@@ -49,7 +48,9 @@
     "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput",
     "typecheck": "tsc -p tsconfig.json --noEmit && svelte-check --tsconfig ./tsconfig.client.json --threshold error",
     "test": "vitest run",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "lint": "biome check . && node scripts/check-ranges.mjs package.json",
+    "format": "biome check --write ."
   },
   "dependencies": {
     "@aws-sdk/client-sesv2": "^3.1116.0",
@@ -96,6 +97,11 @@
     "svelte": "^5.46.0",
     "svelte-check": "^4.0.0",
     "typescript": "~5.9.3",
-    "vitest": "^4.0.0"
+    "vitest": "^4.0.0",
+    "@biomejs/biome": "^2.0.0"
+  },
+  "packageManager": "pnpm@10.30.3",
+  "engines": {
+    "node": ">=24"
   }
 }
