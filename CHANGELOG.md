@@ -1,5 +1,11 @@
 # @kernhq/module-mail
 
+## 0.4.2
+
+### Patch Changes
+
+- fix: declare @kernhq/kernel and @kernhq/contracts as peerDependencies
+
 ## 0.4.1
 
 ### Patch Changes
