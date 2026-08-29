@@ -1,5 +1,11 @@
 # @kernhq/module-mail
 
+## 0.4.6
+
+### Patch Changes
+
+- 5befb0f: Peer @kernhq/kernel ^0.9.1 — the framework published; the module's range follows so one install resolves a single consistent kernel.
+
 ## 0.4.5
 
 ### Patch Changes
