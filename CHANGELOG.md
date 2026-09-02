@@ -1,5 +1,11 @@
 # @kernhq/module-mail
 
+## 0.4.7
+
+### Patch Changes
+
+- 5208dd4: Accept `@kernhq/ui` 0.14, so the module is no longer held back from a platform release whose shell already runs it.
+
 ## 0.4.6
 
 ### Patch Changes
