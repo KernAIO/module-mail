@@ -53,3 +53,17 @@ export const inboundRoutes = schema.table(
   },
   (t) => [index('inbound_routes_ws_idx').on(t.workspaceId)],
 )
+
+/**
+ * The binding that admits every row, for work that is legitimately instance-wide.
+ *
+ * Every table here carries a forced row-level policy (`migrations/0002_rls.sql`) that admits a row
+ * when `app.workspace_id` is its workspace **or** this sentinel. The send job, the provider
+ * webhooks and the suppression check run outside any one workspace — and an instance-level message
+ * has no workspace at all — so they bind this rather than nothing: a transaction that binds nothing
+ * sees nothing, which is the right answer for a query that forgot.
+ */
+export const ALL_WORKSPACES = '*'
+
+/** Every table in `mod_mail` that carries `workspace_id`, and therefore a policy. */
+export const TENANT_TABLES = ['deliveries', 'suppressions', 'inbound_routes'] as const

@@ -1,6 +1,6 @@
--- Mail tables are intentionally not row-level secured, in line with the global tables in mod_core.
--- `deliveries` and `suppressions` are operational records whose workspace_id is nullable: instance-level
--- mail (account emails sent before a workspace exists, and instance-wide suppressions) has no tenant to
--- scope to, and the send path writes outside any workspace transaction. Tenant access goes exclusively
--- through this module's API, which filters by workspace_id and requires mail.deliveries.view /
--- mail.settings.manage.
+-- This file once recorded that mail's tables were "intentionally not row-level secured", on the
+-- grounds that their workspace_id is nullable and every query filtered by hand. That reasoning did
+-- not survive review: a hand-written `where` is one forgotten clause from a workspace reading
+-- another's delivery log. `0002_rls.sql` puts a forced policy on every table, admitting a row for
+-- its own workspace or for the `'*'` binding the instance-wide paths use. The file stays because a
+-- journal entry cannot be removed once instances have applied it.

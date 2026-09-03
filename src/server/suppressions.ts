@@ -1,7 +1,8 @@
 import type { Kernel } from '@kernhq/kernel'
 import { uuidv7 } from '@kernhq/kernel'
 import { and, eq, inArray, isNull, or } from 'drizzle-orm'
-import { suppressions } from './schema.js'
+// Suppressions are instance-wide as well as per workspace, so the check reads across all of them.
+import { ALL_WORKSPACES, suppressions } from './schema.js'
 
 export interface SuppressionEntry {
   workspaceId: string | null
@@ -28,7 +29,7 @@ export async function loadSuppressed(
 ): Promise<Set<string>> {
   if (emails.length === 0) return new Set()
   const lower = emails.map((e) => e.toLowerCase())
-  const rows = await kernel.database.withWorkspace(null, (tx) =>
+  const rows = await kernel.database.withWorkspace(ALL_WORKSPACES, (tx) =>
     tx
       .select({ email: suppressions.email })
       .from(suppressions)
@@ -47,7 +48,7 @@ export async function loadSuppressed(
 /** Record a suppression (idempotent per workspace + email). */
 export async function addSuppression(kernel: Kernel, entry: SuppressionEntry): Promise<void> {
   const email = entry.email.toLowerCase()
-  await kernel.database.withWorkspace(null, async (tx) => {
+  await kernel.database.withWorkspace(ALL_WORKSPACES, async (tx) => {
     const existing = await tx
       .select({ id: suppressions.id })
       .from(suppressions)

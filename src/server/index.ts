@@ -23,7 +23,7 @@ import {
   SECRET_PLACEHOLDER,
   SendMailInput,
 } from '../contract.js'
-import { deliveries, schema } from './schema.js'
+import { ALL_WORKSPACES, deliveries, schema } from './schema.js'
 import { buildMessage, instanceName, processSend, resolveConfig } from './send.js'
 import { maskConfig, unmaskConfig } from './settings.js'
 import { addSuppression } from './suppressions.js'
@@ -52,16 +52,20 @@ export async function queueSend(
   const config = await resolveConfig(kernel, message.workspaceId)
   const built = await buildMessage(kernel, message, fromAddress(config))
   const deliveryId = uuidv7()
-  await kernel.database.db.insert(deliveries).values({
-    id: deliveryId,
-    workspaceId: message.workspaceId ?? null,
-    to: message.to,
-    subject: built.subject,
-    provider: config?.provider ?? 'platform',
-    template: message.template?.name ?? null,
-    status: 'queued',
-    tags: message.tags ?? [],
-  })
+  // Bound to every workspace rather than to the message's: an instance-level message (a sign-in
+  // link, before there is a workspace) has no workspace, and the policy admits it only this way.
+  await kernel.database.withWorkspace(ALL_WORKSPACES, (tx) =>
+    tx.insert(deliveries).values({
+      id: deliveryId,
+      workspaceId: message.workspaceId ?? null,
+      to: message.to,
+      subject: built.subject,
+      provider: config?.provider ?? 'platform',
+      template: message.template?.name ?? null,
+      status: 'queued',
+      tags: message.tags ?? [],
+    }),
+  )
   await kernel.jobs.send(`${MODULE_ID}.${SEND_JOB}`, { deliveryId, message })
   return { deliveryId, status: 'queued' }
 }
@@ -112,12 +116,15 @@ function mailRouter(kernel: Kernel) {
         const where = [eq(deliveries.workspaceId, input.workspaceId)]
         if (input.status) where.push(eq(deliveries.status, input.status))
         if (input.cursor) where.push(lt(deliveries.id, input.cursor))
-        const rows = await kernel.database.db
-          .select()
-          .from(deliveries)
-          .where(and(...where))
-          .orderBy(desc(deliveries.id))
-          .limit(input.limit + 1)
+        // Bound to the workspace asked about, so the policy stands behind the `where`.
+        const rows = await kernel.database.withWorkspace(input.workspaceId, (tx) =>
+          tx
+            .select()
+            .from(deliveries)
+            .where(and(...where))
+            .orderBy(desc(deliveries.id))
+            .limit(input.limit + 1),
+        )
         const items: MailDelivery[] = rows.slice(0, input.limit).map((r) => ({
           id: r.id,
           workspaceId: r.workspaceId as MailDelivery['workspaceId'],

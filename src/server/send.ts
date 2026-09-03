@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm'
 import { type MailDeliveryStatus, mailEvents, type SendMailInput } from '../contract.js'
 import { providerFor } from './providers/index.js'
 import type { MailProvider, OutgoingMessage } from './providers/types.js'
-import { deliveries } from './schema.js'
+import { ALL_WORKSPACES, deliveries } from './schema.js'
 import { filterSuppressed, loadSuppressed } from './suppressions.js'
 import { renderTemplate } from './templates.js'
 
@@ -83,7 +83,8 @@ export async function updateDelivery(
   deliveryId: string,
   patch: { status?: MailDeliveryStatus; providerMessageId?: string | null; error?: string | null },
 ): Promise<void> {
-  await kernel.database.withWorkspace(null, (tx) =>
+  // The job runs for every workspace at once, and an instance-level delivery has none.
+  await kernel.database.withWorkspace(ALL_WORKSPACES, (tx) =>
     tx
       .update(deliveries)
       .set({ ...patch, updatedAt: new Date() })
