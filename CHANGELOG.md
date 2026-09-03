@@ -1,5 +1,11 @@
 # @kernhq/module-mail
 
+## 0.5.1
+
+### Patch Changes
+
+- chore(deps): take @kernhq/testing ^0.1.12, which has permissionMatrixDiff
+
 ## 0.5.0
 
 ### Minor Changes
