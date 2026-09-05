@@ -12,7 +12,7 @@ import {
   toast,
 } from '@kernhq/ui'
 import { createMutation, createQuery, useQueryClient } from '@tanstack/svelte-query'
-import type { MailDelivery } from '../../contract.js'
+import type { MailDelivery, MailTestStatus } from '../../contract.js'
 import { getMailApi } from '../api-instance.js'
 import { t } from '../i18n.js'
 import { SECRET_PLACEHOLDER } from '../index.js'
@@ -141,15 +141,25 @@ const save = createMutation(() => ({
  * A test send, which is the only way to find out whether the credentials work.
  *
  * The provider's refusal comes back as a result rather than an error, so it is shown as one — a
- * rejected recipient is an answer, not a failure of the request.
+ * rejected recipient is an answer, not a failure of the request. The server sends the message
+ * inside the handler now, so a success here means the provider accepted it; whatever the answer,
+ * the delivery log below is refreshed, because it is the record of what actually happened.
  */
 const test = createMutation(() => ({
   mutationFn: () => api.settings.test({ workspaceId, to: recipient }),
-  onSuccess: (result: { ok: boolean; error: string | null }) => {
-    if (result.ok) toast.success(t('test_sent', { to: recipient }))
+  onSuccess: (result: { ok: boolean; error: string | null; status?: MailTestStatus }) => {
+    if (result.ok) {
+      toast.success(t('test_sent', { to: recipient }))
+      return
+    }
+    if (result.status === 'timeout') toast.error(t('test_timeout'))
+    else if (result.status === 'suppressed') toast.error(t('test_suppressed', { to: recipient }))
     else toast.error(result.error ?? t('test_refused'))
   },
   onError: (error: Error) => toast.error(error.message),
+  onSettled: () => {
+    void queryClient.invalidateQueries({ queryKey: ['mail', 'deliveries', workspaceId] })
+  },
 }))
 
 const deliveriesQuery = createQuery(() => ({

@@ -70,6 +70,15 @@ export const MailDelivery = z.object({
 })
 export type MailDelivery = z.infer<typeof MailDelivery>
 
+/**
+ * How a test send ended, when it did not end in the message being accepted.
+ *
+ * `suppressed` is the one worth naming separately: the address is on the blocked list, the provider
+ * was never asked, and the fix is on the same screen rather than in the credentials.
+ */
+export const MailTestStatus = z.enum(['refused', 'suppressed', 'timeout'])
+export type MailTestStatus = z.infer<typeof MailTestStatus>
+
 export const MailSuppression = z.object({
   id: z.uuid(),
   workspaceId: WorkspaceId.nullable(),
@@ -100,7 +109,18 @@ export const mailContract = {
     test: baseContract
       .route({ method: 'POST', path: '/settings/test', tags: ['mail'] })
       .input(ws.extend({ to: Email }))
-      .output(z.object({ ok: z.boolean(), error: z.string().nullable() })),
+      .output(
+        z.object({
+          ok: z.boolean(),
+          /** the provider's own words when it refused; null when there were none */
+          error: z.string().nullable(),
+          /**
+           * Why it did not arrive, so the screen can say something a person can act on rather than
+           * repeating a provider's wording. Absent when the message was accepted.
+           */
+          status: MailTestStatus.optional(),
+        }),
+      ),
   },
   deliveries: {
     list: baseContract

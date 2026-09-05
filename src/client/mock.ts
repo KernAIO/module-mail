@@ -110,10 +110,12 @@ export function createMockMailApi() {
         config = merged
         return { ok: true as const }
       },
+      // The server sends inside the handler now, so this answers the same shape it does: a refusal
+      // carries the provider's words and a `status` the screen can say something better about.
       test: async ({ to }: { to: string }) =>
         to.endsWith('@example.com') || to.endsWith('.example')
           ? { ok: true as const, error: null }
-          : { ok: false as const, error: 'The provider refused the recipient' },
+          : { ok: false as const, error: 'The provider refused the recipient', status: 'refused' as const },
     },
     deliveries: {
       list: async ({ status }: { status?: MailDelivery['status'] }) => ({

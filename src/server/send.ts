@@ -11,6 +11,15 @@ import { renderPlainText, renderTemplate } from './templates.js'
 
 export const instanceName = () => process.env.KERN_INSTANCE_NAME ?? 'Kern'
 
+/**
+ * The error a delivery carries when the blocked list took every recipient.
+ *
+ * Written on the row and read back by the test send, which tells the administrator to look at the
+ * blocked addresses rather than at the credentials. It is a constant so the two ends cannot drift
+ * apart, and the wording is unchanged from when it was a literal here.
+ */
+export const ALL_SUPPRESSED = 'all recipients suppressed'
+
 /** Workspace integration config (`core.settings.getIntegration` kind `mail`) or null → platform SMTP. */
 export async function resolveConfig(
   kernel: Kernel,
@@ -132,17 +141,21 @@ export async function processSend(
   ])
   const to = filterSuppressed(message.to, suppressed).deliverable
   if (to.length === 0) {
-    await updateDelivery(kernel, deliveryId, { status: 'failed', error: 'all recipients suppressed' })
+    await updateDelivery(kernel, deliveryId, { status: 'failed', error: ALL_SUPPRESSED })
     await emitDeliveryEvent(
       kernel,
       mailEvents.deliveryFailed,
       { id: deliveryId, workspaceId, to: message.to },
-      { error: 'all recipients suppressed' },
+      { error: ALL_SUPPRESSED },
     )
     return
   }
-  const provider = await resolveProvider(kernel, message.workspaceId)
+  // Inside the try, not before it: building the provider is where a wrong host, a missing key or an
+  // instance with no SMTP_URL at all throws, and a throw out here left the row saying `queued` for
+  // ever — the delivery log's silence on the most common misconfiguration there is.
+  let provider: MailProvider | undefined
   try {
+    provider = await resolveProvider(kernel, message.workspaceId)
     const outgoing = await buildMessage(kernel, { ...message, to }, provider.from)
     outgoing.cc = message.cc ? filterSuppressed(message.cc, suppressed).deliverable : undefined
     outgoing.bcc = message.bcc ? filterSuppressed(message.bcc, suppressed).deliverable : undefined
@@ -164,6 +177,47 @@ export async function processSend(
     await emitDeliveryEvent(kernel, mailEvents.deliveryFailed, { id: deliveryId, workspaceId, to }, { error })
     throw err
   } finally {
-    provider.close?.()
+    provider?.close?.()
   }
+}
+
+/** What a caller learns from a send it waited for. */
+export interface SendOutcome {
+  deliveryId: string
+  ok: boolean
+  /** the provider's own words when it refused, or why nothing was sent */
+  error: string | null
+  status: MailDeliveryStatus
+}
+
+/**
+ * Send now and answer what actually happened, rather than that it was queued.
+ *
+ * The delivery row is the answer, not the absence of a throw: `processSend` returns normally when
+ * every recipient is suppressed, and it throws *after* recording the provider's refusal, so the two
+ * outcomes are only distinguishable by reading the row back. That is the whole difference between
+ * this and `queueSend` — anything that reports success without having sent teaches an administrator
+ * that a green result means nothing.
+ */
+export async function sendNow(
+  kernel: Kernel,
+  deliveryId: string,
+  message: SendMailInput,
+): Promise<SendOutcome> {
+  let thrown: string | null = null
+  try {
+    await processSend(kernel, { deliveryId, message })
+  } catch (err) {
+    thrown = err instanceof Error ? err.message : String(err)
+  }
+  const [row] = await kernel.database.withWorkspace(ALL_WORKSPACES, (tx) =>
+    tx
+      .select({ status: deliveries.status, error: deliveries.error })
+      .from(deliveries)
+      .where(eq(deliveries.id, deliveryId))
+      .limit(1),
+  )
+  const status = (row?.status ?? 'queued') as MailDeliveryStatus
+  if (status === 'sent') return { deliveryId, ok: true, error: null, status }
+  return { deliveryId, ok: false, error: row?.error ?? thrown, status }
 }

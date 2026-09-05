@@ -24,7 +24,15 @@ import {
   SendMailInput,
 } from '../contract.js'
 import { ALL_WORKSPACES, deliveries, schema } from './schema.js'
-import { buildMessage, instanceName, processSend, resolveConfig } from './send.js'
+import {
+  ALL_SUPPRESSED,
+  buildMessage,
+  instanceName,
+  processSend,
+  resolveConfig,
+  type SendOutcome,
+  sendNow,
+} from './send.js'
 import { maskConfig, unmaskConfig } from './settings.js'
 import { addSuppression } from './suppressions.js'
 import { renderTemplate } from './templates.js'
@@ -40,6 +48,25 @@ const SEND_JOB = 'send'
 const iso = (d: Date) => d.toISOString()
 
 /**
+ * How long the test send waits before it answers "no answer" instead of holding the request open.
+ *
+ * A wrong SMTP host does not refuse, it hangs, and nodemailer's own connection timeout is minutes —
+ * long enough that the browser gives up first and the administrator is told nothing at all.
+ */
+const TEST_SEND_DEADLINE_MS = 20_000
+const TIMED_OUT = Symbol('timed out')
+
+function withDeadline<T>(work: Promise<T>, ms: number): Promise<T | typeof TIMED_OUT> {
+  let timer: NodeJS.Timeout | undefined
+  const deadline = new Promise<typeof TIMED_OUT>((resolve) => {
+    timer = setTimeout(() => resolve(TIMED_OUT), ms)
+  })
+  // The send is not cancelled, only stopped being waited on: whatever the provider eventually says
+  // still lands on the delivery row, which is where the screen looks next.
+  return Promise.race([work, deadline]).finally(() => clearTimeout(timer))
+}
+
+/**
  * Queues an email. Every caller — this module's own API, other modules through `kernel.call('mail.send')`
  * and the core service's account emails — goes through here, so delivery, retries, suppression and the
  * audit trail behave identically no matter who sent the message.
@@ -48,6 +75,22 @@ export async function queueSend(
   kernel: Kernel,
   input: SendMailInput,
 ): Promise<{ deliveryId: string; status: string }> {
+  const { deliveryId, message } = await recordDelivery(kernel, input)
+  await kernel.jobs.send(`${MODULE_ID}.${SEND_JOB}`, { deliveryId, message })
+  return { deliveryId, status: 'queued' }
+}
+
+/**
+ * Validate the message and write its `queued` row — everything both send paths share.
+ *
+ * Rendering the message here as well as in the job is deliberate: a template that does not exist,
+ * an attachment that is not readable and a message with no body at all are answered to the caller
+ * rather than discovered by a background job nobody is watching.
+ */
+async function recordDelivery(
+  kernel: Kernel,
+  input: SendMailInput,
+): Promise<{ deliveryId: string; message: SendMailInput }> {
   const message = SendMailInput.parse(input)
   const config = await resolveConfig(kernel, message.workspaceId)
   const built = await buildMessage(kernel, message, fromAddress(config))
@@ -66,8 +109,18 @@ export async function queueSend(
       tags: message.tags ?? [],
     }),
   )
-  await kernel.jobs.send(`${MODULE_ID}.${SEND_JOB}`, { deliveryId, message })
-  return { deliveryId, status: 'queued' }
+  return { deliveryId, message }
+}
+
+/**
+ * Send a message and wait for the answer, for the one caller that is asking whether mail works.
+ *
+ * `queueSend` is right for everything else — a slow provider must not hold a request open — but a
+ * test send that reports success because a job was enqueued proves nothing at all.
+ */
+export async function sendAndWait(kernel: Kernel, input: SendMailInput): Promise<SendOutcome> {
+  const { deliveryId, message } = await recordDelivery(kernel, input)
+  return sendNow(kernel, deliveryId, message)
 }
 
 /** The envelope sender for a workspace's configured provider, or the instance default. */
@@ -97,17 +150,43 @@ function mailRouter(kernel: Kernel) {
         await kernel.settings.setIntegration(input.workspaceId, 'mail', merged)
         return { ok: true }
       }),
+      /**
+       * The one control whose entire job is to prove that mail works, so it has to send.
+       *
+       * It used to enqueue the message and answer `ok` — success for credentials that could not
+       * connect, for a recipient on the suppression list, for an instance with no provider at all.
+       * An administrator saw a green toast and walked away. Now the provider is built and used
+       * inside the handler and the answer is the delivery's own outcome, in the provider's words.
+       */
       test: scoped.settings.test.use(requires('mail.settings.manage')).handler(async ({ input }) => {
+        const config = await kernel.settings.integration<core.MailProviderConfig>(input.workspaceId, 'mail')
         try {
-          await queueSend(kernel, {
-            workspaceId: input.workspaceId,
-            to: [input.to],
-            subject: `${instanceName()} test message`,
-            template: { name: 'test', data: { instanceName: instanceName() } },
-          })
-          return { ok: true, error: null }
+          const outcome = await withDeadline(
+            sendAndWait(kernel, {
+              workspaceId: input.workspaceId,
+              to: [input.to],
+              subject: `${instanceName()} test message`,
+              template: {
+                name: 'test',
+                data: { instanceName: instanceName(), provider: config?.provider ?? 'platform' },
+              },
+            }),
+            TEST_SEND_DEADLINE_MS,
+          )
+          if (outcome === TIMED_OUT) return { ok: false, error: null, status: 'timeout' as const }
+          if (outcome.ok) return { ok: true, error: null }
+          return {
+            ok: false,
+            error: outcome.error,
+            status: outcome.error === ALL_SUPPRESSED ? ('suppressed' as const) : ('refused' as const),
+          }
         } catch (err) {
-          return { ok: false, error: err instanceof Error ? err.message : String(err) }
+          // Nothing was even queued: a config that will not parse, a template that is not there.
+          return {
+            ok: false,
+            error: err instanceof Error ? err.message : String(err),
+            status: 'refused' as const,
+          }
         }
       }),
     },
