@@ -12,10 +12,11 @@ import {
   workspaceScoped,
 } from '@kernhq/kernel'
 import { implement } from '@orpc/server'
-import { and, desc, eq, lt } from 'drizzle-orm'
+import { and, desc, eq, ilike, isNull, lt, or } from 'drizzle-orm'
 import { z } from 'zod'
 import {
   type MailDelivery,
+  type MailSuppression,
   MODULE_ID,
   mailContract,
   mailEvents,
@@ -23,7 +24,7 @@ import {
   SECRET_PLACEHOLDER,
   SendMailInput,
 } from '../contract.js'
-import { ALL_WORKSPACES, deliveries, schema } from './schema.js'
+import { ALL_WORKSPACES, deliveries, schema, suppressions } from './schema.js'
 import {
   ALL_SUPPRESSED,
   buildMessage,
@@ -222,7 +223,101 @@ function mailRouter(kernel: Kernel) {
         return { items, nextCursor }
       }),
     },
+    suppressions: {
+      list: scoped.suppressions.list.use(requires('mail.settings.manage')).handler(async ({ input }) => {
+        const where = [reachableSuppressions(input.workspaceId)]
+        if (input.q) where.push(ilike(suppressions.email, `%${escapeLike(input.q.toLowerCase())}%`))
+        if (input.cursor) where.push(lt(suppressions.id, input.cursor))
+        const rows = await kernel.database.withWorkspace(ALL_WORKSPACES, (tx) =>
+          tx
+            .select()
+            .from(suppressions)
+            .where(and(...where))
+            .orderBy(desc(suppressions.id))
+            .limit(input.limit + 1),
+        )
+        const items: MailSuppression[] = rows.slice(0, input.limit).map((r) => ({
+          id: r.id,
+          workspaceId: r.workspaceId as MailSuppression['workspaceId'],
+          email: r.email,
+          reason: (['bounce', 'complaint', 'manual'].includes(r.reason)
+            ? r.reason
+            : 'manual') as MailSuppression['reason'],
+          source: r.source,
+          createdAt: iso(r.createdAt),
+        }))
+        const nextCursor = rows.length > input.limit ? (items.at(-1)?.id ?? null) : null
+        return { items, nextCursor }
+      }),
+      /**
+       * Let the address through again.
+       *
+       * Recorded rather than done quietly: this is somebody deciding that a provider's refusal was
+       * wrong, and the next bounce will put the row straight back. The activity row is best-effort
+       * — core being briefly away must not make an administrator think the removal failed and press
+       * the button again — so the log line is written first and always.
+       */
+      remove: scoped.suppressions.remove
+        .use(requires('mail.settings.manage'))
+        .handler(async ({ input, context }) => {
+          const [row] = await kernel.database.withWorkspace(ALL_WORKSPACES, (tx) =>
+            tx
+              .delete(suppressions)
+              .where(and(eq(suppressions.id, input.id), reachableSuppressions(input.workspaceId)))
+              .returning(),
+          )
+          if (!row) throw KernError.notFound('Suppression')
+          const actorId = context.principal?.userId ?? null
+          const scope = row.workspaceId ? 'workspace' : 'instance'
+          kernel.log.info(
+            {
+              module: MODULE_ID,
+              workspaceId: input.workspaceId,
+              actorId,
+              email: row.email,
+              reason: row.reason,
+              source: row.source,
+              scope,
+            },
+            'mail suppression removed',
+          )
+          try {
+            await kernel.call('core.activity.record', {
+              workspaceId: input.workspaceId,
+              module: MODULE_ID,
+              object: { module: MODULE_ID, type: 'suppression', id: row.id },
+              action: 'suppression.removed',
+              actorId,
+              changes: [],
+              data: { email: row.email, reason: row.reason, source: row.source, scope },
+            })
+          } catch (err) {
+            kernel.log.warn(
+              { err: err instanceof Error ? err.message : err },
+              'mail suppression removal was not recorded in the activity feed',
+            )
+          }
+          return { ok: true }
+        }),
+    },
   })
+}
+
+/**
+ * The suppressions a workspace may see and take away: its own, and the instance-wide ones.
+ *
+ * The instance-wide rows are the ones that matter most — a bounce on a password reset or a sign-in
+ * link belongs to no workspace — so leaving them out would leave the worst case unreachable. Both
+ * queries bind `'*'` because a workspace binding cannot see a row with no workspace, which makes
+ * this predicate the tenant boundary rather than the policy; `isolation.test.ts` holds it to that.
+ */
+function reachableSuppressions(workspaceId: string) {
+  return or(eq(suppressions.workspaceId, workspaceId), isNull(suppressions.workspaceId))
+}
+
+/** `%` and `_` are wildcards in `like`, and an address may contain either. */
+function escapeLike(value: string): string {
+  return value.replace(/[\\%_]/g, (c) => `\\${c}`)
 }
 
 /**

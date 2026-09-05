@@ -1,5 +1,5 @@
 import type { WorkspaceId } from '@kernhq/contracts'
-import type { MailDelivery } from '../contract.js'
+import type { MailDelivery, MailSuppression } from '../contract.js'
 import { SECRET_PLACEHOLDER } from './index.js'
 
 /**
@@ -87,6 +87,38 @@ export function createMockMailApi() {
     },
   ]
 
+  /**
+   * The blocked addresses, one of each kind the screen has to tell apart: a workspace's own bounce,
+   * a complaint, and the instance-wide row that stops account mail for everybody — which is the
+   * case the demo exists to show, because it is the one an administrator cannot otherwise explain.
+   */
+  let suppressions: MailSuppression[] = [
+    {
+      id: '0192aa00-0000-7000-8000-00000000e001',
+      workspaceId: WORKSPACE,
+      email: 'left@example.com',
+      reason: 'bounce',
+      source: 'postmark',
+      createdAt: iso(3 * DAY),
+    },
+    {
+      id: '0192aa00-0000-7000-8000-00000000e002',
+      workspaceId: WORKSPACE,
+      email: 'noreply@partner.example',
+      reason: 'complaint',
+      source: 'mailgun',
+      createdAt: iso(9 * DAY),
+    },
+    {
+      id: '0192aa00-0000-7000-8000-00000000e003',
+      workspaceId: null,
+      email: 'dan@northstar.example',
+      reason: 'bounce',
+      source: 'smtp',
+      createdAt: iso(11 * DAY),
+    },
+  ]
+
   /** What a read returns: the shape of the config with every secret masked. */
   const masked = () =>
     config === null
@@ -111,17 +143,31 @@ export function createMockMailApi() {
         return { ok: true as const }
       },
       // The server sends inside the handler now, so this answers the same shape it does: a refusal
-      // carries the provider's words and a `status` the screen can say something better about.
-      test: async ({ to }: { to: string }) =>
-        to.endsWith('@example.com') || to.endsWith('.example')
+      // carries the provider's words and a `status` the screen can say something better about, and
+      // a blocked address is refused here for the same reason it is there.
+      test: async ({ to }: { to: string }) => {
+        if (suppressions.some((s) => s.email === to.toLowerCase()))
+          return { ok: false as const, error: 'all recipients suppressed', status: 'suppressed' as const }
+        return to.endsWith('@example.com') || to.endsWith('.example')
           ? { ok: true as const, error: null }
-          : { ok: false as const, error: 'The provider refused the recipient', status: 'refused' as const },
+          : { ok: false as const, error: 'The provider refused the recipient', status: 'refused' as const }
+      },
     },
     deliveries: {
       list: async ({ status }: { status?: MailDelivery['status'] }) => ({
         items: deliveries.filter((d) => !status || d.status === status),
         nextCursor: null,
       }),
+    },
+    suppressions: {
+      list: async ({ q }: { q?: string }) => ({
+        items: suppressions.filter((s) => !q || s.email.includes(q.toLowerCase())),
+        nextCursor: null,
+      }),
+      remove: async ({ id }: { id: string }) => {
+        suppressions = suppressions.filter((s) => s.id !== id)
+        return { ok: true as const }
+      },
     },
   }
 }

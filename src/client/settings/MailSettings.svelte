@@ -2,8 +2,10 @@
 import {
   Badge,
   Button,
+  Dialog,
   Input,
   messageLocale,
+  SearchBox,
   Select,
   SettingsPage,
   SettingsSection,
@@ -12,7 +14,7 @@ import {
   toast,
 } from '@kernhq/ui'
 import { createMutation, createQuery, useQueryClient } from '@tanstack/svelte-query'
-import type { MailDelivery, MailTestStatus } from '../../contract.js'
+import type { MailDelivery, MailSuppression, MailTestStatus } from '../../contract.js'
 import { getMailApi } from '../api-instance.js'
 import { t } from '../i18n.js'
 import { SECRET_PLACEHOLDER } from '../index.js'
@@ -185,6 +187,64 @@ const statusTone = (status: string) =>
   status === 'bounced' || status === 'failed' ? 'danger' : status === 'queued' ? 'grey' : 'success'
 
 const when = $derived(new Intl.DateTimeFormat(messageLocale(), { dateStyle: 'medium', timeStyle: 'short' }))
+
+/**
+ * The addresses nothing is sent to.
+ *
+ * One bounce, one full mailbox or one press of "report spam" writes a row that stops password
+ * resets, sign-in links and invitations for ever, and until this section existed the only way back
+ * was a SQL statement. The instance-wide rows are here too and marked as such: a bounce on a
+ * sign-in link belongs to no workspace, so leaving them out would hide the case that hurts most.
+ */
+let search = $state('')
+/** What is actually asked for — debounced, so a list is not fetched for every keystroke. */
+let query = $state('')
+$effect(() => {
+  const next = search.trim()
+  const timer = setTimeout(() => (query = next), 250)
+  return () => clearTimeout(timer)
+})
+
+const blockedQuery = createQuery(() => ({
+  queryKey: ['mail', 'suppressions', workspaceId, query],
+  queryFn: () => api.suppressions.list({ workspaceId, ...(query ? { q: query } : {}) }),
+  enabled: Boolean(workspaceId) && canManage,
+}))
+const blocked = $derived(blockedQuery.data?.items ?? [])
+
+let removing = $state<MailSuppression | null>(null)
+/**
+ * The attribute reaches the button one render after the click, so two quick presses both file a
+ * removal — the second answering 404. The flag is set in the same tick instead.
+ */
+let firing = $state(false)
+
+const REASON_LABELS: Record<string, () => string> = {
+  bounce: () => t('blocked_reason_bounce'),
+  complaint: () => t('blocked_reason_complaint'),
+  manual: () => t('blocked_reason_manual'),
+}
+const reasonLabel = (reason: string) => REASON_LABELS[reason]?.() ?? reason
+
+const remove = createMutation(() => ({
+  mutationFn: (row: MailSuppression) => api.suppressions.remove({ workspaceId, id: row.id }),
+  onSuccess: (_result: { ok: boolean }, row: MailSuppression) => {
+    toast.success(t('blocked_removed', { email: row.email }))
+    removing = null
+  },
+  onError: (error: Error) => toast.error(error.message),
+  onSettled: () => {
+    firing = false
+    void queryClient.invalidateQueries({ queryKey: ['mail', 'suppressions', workspaceId] })
+  },
+}))
+
+function confirmRemoval() {
+  const row = removing
+  if (!row || firing) return
+  firing = true
+  remove.mutate(row)
+}
 </script>
 
 <SettingsPage title={t('settings_title')} description={t('settings_hint')}>
@@ -264,6 +324,54 @@ const when = $derived(new Intl.DateTimeFormat(messageLocale(), { dateStyle: 'med
     </div>
   </SettingsSection>
 
+  {#if canManage}
+    <SettingsSection title={t('blocked_title')} description={t('blocked_hint')}>
+      <div class="filter">
+        <SearchBox
+          bind:value={search}
+          placeholder={t('blocked_search')}
+          label={t('blocked_search')}
+          data-testid="mail-blocked-search"
+        />
+      </div>
+
+      {#if blockedQuery.isPending}
+        <div class="state"><Spinner /></div>
+      {:else if !blocked.length}
+        <p class="empty">{query ? t('blocked_none_found', { q: query }) : t('blocked_empty')}</p>
+      {:else}
+        <ul class="log" data-testid="mail-blocked">
+          {#each blocked as row (row.id)}
+            <li>
+              <div class="top">
+                <span class="addr">{row.email}</span>
+                <Badge tone="grey">{reasonLabel(row.reason)}</Badge>
+                {#if row.workspaceId === null}
+                  <!-- Instance-wide: this is the row that stops password resets and sign-in links,
+                       and removing it lets every workspace send to the address again. -->
+                  <Badge tone="warning">{t('blocked_scope_instance')}</Badge>
+                {/if}
+                <span class="spacer"></span>
+                <span class="when">{when.format(new Date(row.createdAt))}</span>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onclick={() => (removing = row)}
+                  data-testid="mail-blocked-remove"
+                >
+                  {t('common.remove')}
+                </Button>
+              </div>
+              {#if row.source}
+                <div class="meta"><span>{row.source}</span></div>
+              {/if}
+            </li>
+          {/each}
+        </ul>
+      {/if}
+    </SettingsSection>
+  {/if}
+
   {#if canSeeLog}
     <SettingsSection title={t('log_title')} description={t('log_hint')}>
       <div class="filter" data-testid="mail-log-filter">
@@ -307,6 +415,39 @@ const when = $derived(new Intl.DateTimeFormat(messageLocale(), { dateStyle: 'med
   {/if}
 </SettingsPage>
 
+<!--
+  Removing a suppression is not undoable in the sense that matters: the provider refused this
+  address once, and letting it through again is a decision about the instance's sending reputation
+  as much as about one person. So it is confirmed, and the confirmation says what happens next.
+-->
+<Dialog
+  open={removing !== null}
+  size="sm"
+  title={removing ? t('blocked_confirm_title', { email: removing.email }) : ''}
+  onOpenChange={(open: boolean) => {
+    if (!open) removing = null
+  }}
+>
+  {#if removing}
+    <p class="body">{t('blocked_confirm_body', { email: removing.email })}</p>
+    {#if removing.workspaceId === null}
+      <p class="body warn">{t('blocked_confirm_instance')}</p>
+    {/if}
+  {/if}
+
+  {#snippet footer()}
+    <Button variant="secondary" onclick={() => (removing = null)}>{t('common.cancel')}</Button>
+    <Button
+      variant="danger"
+      loading={remove.isPending}
+      onclick={confirmRemoval}
+      data-testid="mail-blocked-confirm"
+    >
+      {t('common.remove')}
+    </Button>
+  {/snippet}
+</Dialog>
+
 <style>
 .grid {
   display: grid;
@@ -349,8 +490,21 @@ const when = $derived(new Intl.DateTimeFormat(messageLocale(), { dateStyle: 'med
 }
 .top {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+}
+/* Pushes the date and the action to the end of the row, in either direction. */
+.spacer {
+  flex: 1;
+}
+.addr {
+  min-width: 0;
+  max-width: 100%;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .subject {
   flex: 1;
@@ -383,6 +537,20 @@ const when = $derived(new Intl.DateTimeFormat(messageLocale(), { dateStyle: 'med
   margin: 0;
   font-size: 13px;
   color: var(--kern-ink-400);
+}
+.body {
+  margin: 0 0 8px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--kern-ink-600);
+}
+.body:last-child {
+  margin-bottom: 0;
+}
+/* A colour, not an opacity: a faded paragraph is unreadable whatever its token says.
+   Measured on both dialog surfaces — 5.2:1 light, 6.3:1 dark. */
+.warn {
+  color: var(--kern-warning);
 }
 .state {
   display: grid;

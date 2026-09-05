@@ -128,6 +128,25 @@ export const mailContract = {
       .input(ws.extend(PageInput.shape).extend({ status: MailDeliveryStatus.optional() }))
       .output(page(MailDelivery)),
   },
+  /**
+   * The addresses this workspace may not send to, and the way back off the list.
+   *
+   * A hard bounce, a full mailbox or one press of "report spam" writes a row here for ever, and
+   * until this existed nothing in the product could read it or take it away: an address that
+   * bounced once stopped receiving password resets, sign-in links and invitations, and only SQL
+   * released it. A workspace sees its own rows and the instance-wide ones — the instance-wide ones
+   * are the account mail, so leaving them out would leave the worst case unreachable.
+   */
+  suppressions: {
+    list: baseContract
+      .route({ method: 'GET', path: '/suppressions', tags: ['mail'] })
+      .input(ws.extend(PageInput.shape).extend({ q: z.string().max(320).optional() }))
+      .output(page(MailSuppression)),
+    remove: baseContract
+      .route({ method: 'DELETE', path: '/suppressions/{id}', tags: ['mail'] })
+      .input(ws.extend({ id: z.uuid() }))
+      .output(z.object({ ok: z.boolean() })),
+  },
 }
 export type MailContract = typeof mailContract
 

@@ -173,6 +173,53 @@ describe('the delivery log', () => {
   })
 })
 
+describe('the blocked-address list, over the API', () => {
+  /**
+   * The one predicate that is doing the work here is hand-written rather than a policy: both
+   * queries bind `'*'`, because the instance-wide rows belong to no workspace and a workspace
+   * binding cannot see them. So the tenant boundary is the `where`, and it is asserted directly.
+   */
+  it('shows a workspace its own rows and the instance’s, never a neighbour’s', async () => {
+    const forA = await call(
+      router.suppressions.list,
+      { workspaceId: WS_A, limit: 50 },
+      { context: context(inA) },
+    )
+    expect(forA.items.map((s) => s.email).toSorted()).toEqual([
+      'bounced@example.test',
+      'complained@example.test',
+    ])
+    const forB = await call(
+      router.suppressions.list,
+      { workspaceId: WS_B, limit: 50 },
+      { context: context(inB) },
+    )
+    expect(forB.items.map((s) => s.email)).toEqual(['complained@example.test'])
+  })
+
+  it('refuses a member of A asking for B’s list', async () => {
+    await expect(
+      call(router.suppressions.list, { workspaceId: WS_B, limit: 50 }, { context: context(inA) }),
+    ).rejects.toMatchObject({ code: expect.stringMatching(/FORBIDDEN|NOT_FOUND|UNAUTHORIZED/) })
+  })
+
+  it('will not let A remove a row belonging to B, and leaves it where it is', async () => {
+    const forA = await call(
+      router.suppressions.list,
+      { workspaceId: WS_A, limit: 50 },
+      { context: context(inA) },
+    )
+    const aRow = forA.items.find((s) => s.email === 'bounced@example.test')!
+    // A's own row is A's to remove; B asking for the same id must find nothing rather than delete it
+    await expect(
+      call(router.suppressions.remove, { workspaceId: WS_B, id: aRow.id }, { context: context(inB) }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' })
+    expect([...(await loadSuppressed(kernel, WS_A, ['bounced@example.test']))]).toEqual([
+      'bounced@example.test',
+    ])
+  })
+})
+
 describe('the suppression list', () => {
   it("applies a workspace's own suppressions and the instance's, never a neighbour's", async () => {
     const forA = await loadSuppressed(kernel, WS_A, [
