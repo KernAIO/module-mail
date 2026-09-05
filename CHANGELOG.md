@@ -1,5 +1,12 @@
 # @kernhq/module-mail
 
+## 0.6.2
+
+### Patch Changes
+
+- 7863592: Peer `@kernhq/contracts@^0.8.0`, which adds `archivedAt` to `WorkspaceSummary`. A caret on 0.x does
+  not cross a minor, so the previous `^0.7.0` could not reach it.
+
 ## 0.6.1
 
 ### Patch Changes
