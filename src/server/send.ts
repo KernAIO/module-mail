@@ -198,6 +198,10 @@ export interface SendOutcome {
  * outcomes are only distinguishable by reading the row back. That is the whole difference between
  * this and `queueSend` — anything that reports success without having sent teaches an administrator
  * that a green result means nothing.
+ *
+ * It calls `processSend` directly rather than enqueuing it, so there is no retry and no backoff:
+ * one attempt, and its outcome is the answer. `sendAndWait` carries the reasoning and what the
+ * missing queue costs.
  */
 export async function sendNow(
   kernel: Kernel,

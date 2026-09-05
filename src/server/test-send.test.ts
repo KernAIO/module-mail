@@ -31,6 +31,8 @@ let admin: pg.Client
 let router: ReturnType<NonNullable<typeof mailModule.router>>
 let smtp: StubSmtp
 let config: Record<string, unknown> | null = null
+/** When set, `core.settings.getIntegration` fails with this message — core briefly unreachable. */
+let integrationFailure: string | null = null
 
 const WS = randomUUID()
 const ADMIN = randomUUID()
@@ -141,7 +143,12 @@ beforeAll(async () => {
     'authz.customRolePermissions': { handler: async () => [] },
     'authz.bindings': { handler: async () => [] },
     'settings.getModule': { handler: async () => ({}) },
-    'settings.getIntegration': { handler: async () => config },
+    'settings.getIntegration': {
+      handler: async () => {
+        if (integrationFailure) throw new Error(integrationFailure)
+        return config
+      },
+    },
   })
   await kernel.start()
   router = mailModule.router!(kernel)
@@ -220,5 +227,58 @@ describe('the test send', () => {
     // not `refused`: nothing was asked of the provider, and the fix is on this screen
     expect(result.status).toBe('suppressed')
     expect(smtp.received.length).toBe(before)
+  })
+
+  it('names the missing provider on an instance that has none, once', async () => {
+    // The state every self-hosted install starts in. It has to reach the administrator as an
+    // answer, and the delivery row has to say so rather than sitting on `queued`.
+    config = null
+    const smtpUrl = process.env.SMTP_URL
+    delete process.env.SMTP_URL
+    const failed: string[] = []
+    const off = await kernel.events.subscribe('mail.delivery.failed', (e) => {
+      failed.push(String((e.payload as { error?: unknown }).error ?? ''))
+    })
+    try {
+      const result = await call(
+        router.settings.test,
+        { workspaceId: WS, to: 'nowhere@example.test' },
+        { context: asAdmin() },
+      )
+      expect(result.ok).toBe(false)
+      expect(result.status).toBe('refused')
+      expect(result.error).toContain('No mail provider configured')
+
+      const row = (await logged()).find((r) => r.to.includes('nowhere@example.test'))
+      expect(row?.status).toBe('failed')
+      // One attempt, one event: the test send does not go through the queue, so the `send` job's
+      // five retries — which would emit this five more times — are not in play here.
+      expect(failed).toHaveLength(1)
+      expect(failed[0]).toContain('No mail provider configured')
+    } finally {
+      off()
+      if (smtpUrl !== undefined) process.env.SMTP_URL = smtpUrl
+    }
+  })
+
+  it('reports a failure when core cannot be reached, rather than throwing', async () => {
+    // Reading the workspace's provider config is a call to core, and core is a different service:
+    // a restart, a rolling deploy or a dropped connection makes it fail for a few seconds. Every
+    // failure this handler can meet has to arrive on the screen the same way, because the control's
+    // entire job is to tell an administrator the truth about whether mail works.
+    config = { provider: 'smtp', host: '127.0.0.1', port: smtp.port, secure: false, from: 'Kern <k@t.test>' }
+    integrationFailure = 'core is unreachable'
+    try {
+      const result = await call(
+        router.settings.test,
+        { workspaceId: WS, to: 'unreachable@example.test' },
+        { context: asAdmin() },
+      )
+      expect(result.ok).toBe(false)
+      expect(result.status).toBe('refused')
+      expect(result.error).toBeTruthy()
+    } finally {
+      integrationFailure = null
+    }
   })
 })

@@ -118,6 +118,21 @@ async function recordDelivery(
  *
  * `queueSend` is right for everything else — a slow provider must not hold a request open — but a
  * test send that reports success because a job was enqueued proves nothing at all.
+ *
+ * **No job is enqueued, so none of the queue's guarantees apply here.** The `send` job retries up to
+ * five times with backoff; this is one attempt, and its outcome is the answer the administrator
+ * reads. That is the trade, and it is the right one for this caller: a test send retried on a
+ * backoff answers twenty minutes later, to a screen nobody is looking at any more.
+ *
+ * What it costs is a window. The delivery row is written `queued` before the provider is called, so
+ * a process that restarts while the provider is thinking leaves that row `queued` with no job behind
+ * it, and nothing sweeps it. `queueSend` has the same gap between its insert and `kernel.jobs.send`
+ * — this one is as long as the provider takes rather than a millisecond. It is deliberately left
+ * unswept: a sweeper that re-sent could duplicate a message the provider had already accepted (the
+ * restart may have landed between acceptance and the row being updated), and one that marked stale
+ * rows `failed` would mislabel a message pg-boss is merely slow to reach. On a control an
+ * administrator is standing in front of, the whole cost is one stale line in the delivery log and
+ * one more press of the button.
  */
 export async function sendAndWait(kernel: Kernel, input: SendMailInput): Promise<SendOutcome> {
   const { deliveryId, message } = await recordDelivery(kernel, input)
@@ -160,8 +175,12 @@ function mailRouter(kernel: Kernel) {
        * inside the handler and the answer is the delivery's own outcome, in the provider's words.
        */
       test: scoped.settings.test.use(requires('mail.settings.manage')).handler(async ({ input }) => {
-        const config = await kernel.settings.integration<core.MailProviderConfig>(input.workspaceId, 'mail')
         try {
+          // Inside the try, because reading the config is a call to core and core is a different
+          // service: a restart or a dropped connection throws here, and a throw out of the handler
+          // reaches the administrator as a raw error toast rather than as the answer this control
+          // exists to give. Every failure it can meet has to be reported the same way.
+          const config = await kernel.settings.integration<core.MailProviderConfig>(input.workspaceId, 'mail')
           const outcome = await withDeadline(
             sendAndWait(kernel, {
               workspaceId: input.workspaceId,
@@ -182,7 +201,8 @@ function mailRouter(kernel: Kernel) {
             status: outcome.error === ALL_SUPPRESSED ? ('suppressed' as const) : ('refused' as const),
           }
         } catch (err) {
-          // Nothing was even queued: a config that will not parse, a template that is not there.
+          // Nothing was even queued: core did not answer, a config that will not parse, a template
+          // that is not there.
           return {
             ok: false,
             error: err instanceof Error ? err.message : String(err),

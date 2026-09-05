@@ -159,6 +159,15 @@ const deliveryEvent = z.object({
 })
 export const mailEvents = {
   deliverySent: defineEvent('mail.delivery.sent', deliveryEvent),
+  /**
+   * Fired per **attempt**, not per message.
+   *
+   * The `send` job retries up to five times with backoff and records the failure each time, so one
+   * message that never gets out produces up to six of these — and an instance with no provider
+   * configured at all fails that way for every message it is asked to send. A subscriber counting
+   * these is counting attempts; key on `deliveryId` to count messages, and read `error` rather than
+   * assuming a failure is worth retrying, because "no mail provider configured" never is.
+   */
   deliveryFailed: defineEvent('mail.delivery.failed', deliveryEvent),
   deliveryBounced: defineEvent('mail.delivery.bounced', deliveryEvent),
 }
