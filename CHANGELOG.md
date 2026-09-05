@@ -1,5 +1,55 @@
 # @kernhq/module-mail
 
+## 0.6.0
+
+### Minor Changes
+
+- f3ec9bc: Send a message that carries only plain text in the shared paper layout.
+
+  Five branded MJML templates shipped in this package and nothing rendered them: every email the
+  platform sends is built by its caller, and a caller that names no template got whatever HTML it
+  brought — or, for core's notification digest, no HTML at all. The digest is the email most people
+  here actually open and it arrived as bare text.
+
+  `buildMessage` now wraps text with no HTML beside it in `templates/_layout.mjml`, escaping and
+  linking each paragraph, so it looks like the rest of the platform without the caller knowing a
+  template name. A caller's own HTML is left exactly as it arrived, and the text part is untouched.
+
+  `src/server/templates.test.ts` compiles every shipped template against one sample and asserts the
+  branding, which nothing did before.
+
+- 94c38d1: See the blocked addresses, and take one off the list.
+
+  An address that bounced once was blocked from every Kern email for ever. A full mailbox, a
+  corporate relay answering 550 during a misconfiguration, or one press of "report spam" on a digest
+  stopped that person receiving password resets, sign-in links and invitations — and nothing in the
+  product could read the list or change it. The administrator saw "failed — all recipients
+  suppressed" and had no way to act; only SQL released the address.
+
+  `suppressions.list` and `suppressions.remove` are new on the mail contract, behind
+  `mail.settings.manage`, and Settings → Email now has a **Blocked addresses** section with a search
+  box and a Remove action per row. A workspace sees its own rows and the instance-wide ones — the
+  instance-wide rows are the account mail, so leaving them out would have left the worst case
+  unreachable — and a row that belongs to the whole instance is marked as such on screen and in the
+  confirmation. Every removal is written to the log and to the workspace's activity feed.
+
+- d3411cd: Send the test message inside the handler and answer what actually happened.
+
+  "Send test" on Settings → Email enqueued a job and reported success, so an administrator saw a
+  green toast for credentials that could not connect, for a recipient on the blocked list, and for an
+  instance with no provider configured at all. The one control whose job is to prove that mail works
+  proved nothing.
+
+  The provider is now built and used before the handler answers, and the answer is the delivery's own
+  outcome: `ok` only when the provider accepted the message, `error` in the provider's own words, and
+  a new optional `status` (`refused`, `suppressed`, `timeout`) so the screen can say something a
+  person can act on. The screen also refreshes the delivery log after every test, whatever the answer.
+
+  Two things the delivery log was getting wrong are fixed with it: building the provider now happens
+  inside `processSend`'s try, so a wrong host or a missing key leaves the row `failed` with the reason
+  rather than `queued` for ever; and the test message renders with the provider's name in it, which
+  was blank.
+
 ## 0.5.2
 
 ### Patch Changes
