@@ -33,6 +33,7 @@ function file(name: string): string {
   return content
 }
 
+/** The named templates a caller may ask for. Files starting with `_` are layout, not messages. */
 export function templateNames(): string[] {
   return readdirSync(templatesDir)
     .filter((f) => f.endsWith('.mjml') && !f.startsWith('_'))
@@ -69,6 +70,53 @@ export async function renderTemplate(
   const text = etaText.renderString(file(`${name}.txt`), it).trim()
   const subject = etaText.renderString(file(`${name}.subject.txt`), it).trim()
   return { subject, html, text }
+}
+
+/**
+ * Put plain text into the shared paper layout.
+ *
+ * The named templates only render for a caller that knows their names, and the platform's own
+ * account mail does not: core builds its HTML itself, and its notification digest carries no HTML
+ * at all — so the most-opened email Kern sends arrived as bare text while five branded templates
+ * sat unused in this package. Anything that reaches the send path with text and no HTML is wrapped
+ * here instead, which is the one improvement that needs nothing from the caller.
+ *
+ * The text part is left exactly as the caller wrote it: this only adds the HTML alternative.
+ */
+export async function renderPlainText(text: string, opts: RenderOptions = {}): Promise<string> {
+  const instance = opts.instanceName ?? 'Kern'
+  const paragraphs = text
+    .replace(/\r\n/g, '\n')
+    .split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((p) => p.split('\n').map(linkify).join('<br />'))
+  const body = etaText.renderString(file('_message.mjml'), {
+    __paragraphs: paragraphs.length > 0 ? paragraphs : [linkify(text.trim())],
+  })
+  const mjml = etaText.renderString(file('_layout.mjml'), {
+    __instanceName: escapeHtml(instance),
+    __body: body,
+    __footer: opts.footer ?? `Sent by ${escapeHtml(instance)} · an open-source Kern instance`,
+  })
+  const { html, errors } = await mjml2html(mjml, { validationLevel: 'soft' })
+  if (!html) throw new KernError('INTERNAL', `Plain-text layout failed to compile: ${errors[0]?.message}`)
+  return html
+}
+
+/**
+ * Escape one line, then turn bare links into anchors.
+ *
+ * Escaping first is what makes this safe: by the time the link pattern runs there is no markup
+ * left in the string, so the only tags in the result are the ones written here. `&` inside a URL
+ * is already `&amp;` at that point, which is what an `href` attribute wants anyway.
+ */
+function linkify(line: string): string {
+  return escapeHtml(line).replace(/https?:\/\/[^\s<]+/g, (raw) => {
+    const trimmed = raw.replace(/[.,)\]}>'"]+$/, '')
+    const tail = raw.slice(trimmed.length)
+    return `<a href="${trimmed}" style="color:#A85A18;">${trimmed}</a>${tail}`
+  })
 }
 
 function escapeHtml(s: string): string {

@@ -1,0 +1,15 @@
+<!--
+  The body used for a message that carries no HTML of its own.
+
+  A caller that hands the module plain text (core's notification digest is one) used to go out as
+  text and nothing else, so the one email a person is most likely to open looked like nothing else
+  the platform sends. `renderPlainText` escapes and linkifies each paragraph and hands them here, so
+  the markup — and therefore the design — still lives in this folder with the named templates.
+-->
+<mj-section padding="24px 32px">
+  <mj-column>
+    <% it.__paragraphs.forEach(function (paragraph, i) { %>
+    <mj-text padding="<%= i === 0 ? '0' : '12px' %> 0 0 0"><%~ paragraph %></mj-text>
+    <% }) %>
+  </mj-column>
+</mj-section>

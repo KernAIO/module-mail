@@ -7,7 +7,7 @@ import { providerFor } from './providers/index.js'
 import type { MailProvider, OutgoingMessage } from './providers/types.js'
 import { ALL_WORKSPACES, deliveries } from './schema.js'
 import { filterSuppressed, loadSuppressed } from './suppressions.js'
-import { renderTemplate } from './templates.js'
+import { renderPlainText, renderTemplate } from './templates.js'
 
 export const instanceName = () => process.env.KERN_INSTANCE_NAME ?? 'Kern'
 
@@ -43,6 +43,10 @@ export async function buildMessage(
     if (!input.subject.trim()) subject = rendered.subject
   }
   if (!text && !html) throw new KernError('BAD_REQUEST', 'One of text, html or template is required')
+  // A caller that knows no template name still gets the platform's own design: text with no HTML
+  // beside it goes out in the shared paper layout as well. Core's notification digest is exactly
+  // that shape, and it is the email most people here actually read.
+  if (text && !html) html = await renderPlainText(text, { instanceName: instanceName() })
 
   const attachments = await Promise.all(
     (input.attachments ?? []).map(async (a) => {
