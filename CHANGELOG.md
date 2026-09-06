@@ -1,5 +1,11 @@
 # @kernhq/module-mail
 
+## 0.6.6
+
+### Patch Changes
+
+- chore(renovate): drop dead @kernhq automerge rule
+
 ## 0.6.5
 
 ### Patch Changes
