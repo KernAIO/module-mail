@@ -1,5 +1,11 @@
 # @kernhq/module-mail
 
+## 0.6.7
+
+### Patch Changes
+
+- chore: check the packed tarball can resolve its own imports
+
 ## 0.6.6
 
 ### Patch Changes
