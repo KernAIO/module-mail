@@ -50,6 +50,7 @@
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
     "lint": "biome check . && node scripts/check-ranges.mjs package.json",
+    "check:pack": "node scripts/check-pack.mjs",
     "format": "biome check --write .",
     "changeset": "changeset"
   },
