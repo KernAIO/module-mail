@@ -111,6 +111,12 @@
     "typescript": "~5.9.3",
     "vitest": "^4.0.0"
   },
+  "pnpm": {
+    "overrides": {
+      "@kernhq/contracts": "$@kernhq/contracts",
+      "@kernhq/kernel": "$@kernhq/kernel"
+    }
+  },
   "packageManager": "pnpm@10.30.3",
   "engines": {
     "node": ">=24"
