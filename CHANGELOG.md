@@ -1,5 +1,11 @@
 # @kernhq/module-mail
 
+## 0.6.4
+
+### Patch Changes
+
+- build(deps): raise @kernhq/testing to ^0.1.14
+
 ## 0.6.3
 
 ### Patch Changes
